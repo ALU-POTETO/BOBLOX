@@ -1,4 +1,3 @@
-```lua
 local Players = game:GetService("Players")
 
 local player = Players.LocalPlayer
@@ -7,158 +6,232 @@ local playerGui = player:WaitForChild("PlayerGui")
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
--- Settings
-local normalSpeed = 16
-local normalJump = 50
+--==================================================
+-- CONFIG
+--==================================================
+
+local DEFAULT_WALKSPEED = 16
+local DEFAULT_JUMPPOWER = 50
 
 local speedEnabled = false
 local jumpEnabled = false
 
--- Create GUI
+--==================================================
+-- GUI
+--==================================================
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MovementTestGUI"
 screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
 
--- Main frame
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 250, 0, 180)
-mainFrame.Position = UDim2.new(0, 20, 0, 20)
-mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.Size = UDim2.fromOffset(300, 210)
+mainFrame.Position = UDim2.fromOffset(20, 20)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
 
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = mainFrame
+
 -- Title
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "Movement Controls"
-title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+title.Text = "Movement Test"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.GothamBold
-title.TextSize = 16
+title.TextSize = 17
 title.Parent = mainFrame
 
--- Speed toggle
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.Parent = title
+
+--==================================================
+-- SPEED
+--==================================================
+
 local speedToggle = Instance.new("TextButton")
-speedToggle.Size = UDim2.new(0.45, 0, 0, 30)
-speedToggle.Position = UDim2.new(0.05, 0, 0.2, 0)
+speedToggle.Size = UDim2.fromOffset(125, 35)
+speedToggle.Position = UDim2.fromOffset(15, 60)
+speedToggle.BackgroundColor3 = Color3.fromRGB(65, 65, 72)
 speedToggle.Text = "Speed: OFF"
-speedToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 speedToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedToggle.Font = Enum.Font.GothamMedium
+speedToggle.TextSize = 14
 speedToggle.Parent = mainFrame
 
--- Speed input
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 6)
+speedCorner.Parent = speedToggle
+
 local speedBox = Instance.new("TextBox")
-speedBox.Size = UDim2.new(0.4, 0, 0, 25)
-speedBox.Position = UDim2.new(0.55, 0, 0.2, 0)
+speedBox.Size = UDim2.fromOffset(125, 35)
+speedBox.Position = UDim2.fromOffset(160, 60)
+speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
 speedBox.Text = "100"
-speedBox.PlaceholderText = "Speed"
-speedBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.PlaceholderText = "WalkSpeed"
 speedBox.ClearTextOnFocus = false
+speedBox.Font = Enum.Font.Gotham
+speedBox.TextSize = 14
 speedBox.Parent = mainFrame
 
--- Jump toggle
+local speedBoxCorner = Instance.new("UICorner")
+speedBoxCorner.CornerRadius = UDim.new(0, 6)
+speedBoxCorner.Parent = speedBox
+
+--==================================================
+-- JUMP
+--==================================================
+
 local jumpToggle = Instance.new("TextButton")
-jumpToggle.Size = UDim2.new(0.45, 0, 0, 30)
-jumpToggle.Position = UDim2.new(0.05, 0, 0.45, 0)
+jumpToggle.Size = UDim2.fromOffset(125, 35)
+jumpToggle.Position = UDim2.fromOffset(15, 110)
+jumpToggle.BackgroundColor3 = Color3.fromRGB(65, 65, 72)
 jumpToggle.Text = "Jump: OFF"
-jumpToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 jumpToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpToggle.Font = Enum.Font.GothamMedium
+jumpToggle.TextSize = 14
 jumpToggle.Parent = mainFrame
 
--- Jump input
+local jumpCorner = Instance.new("UICorner")
+jumpCorner.CornerRadius = UDim.new(0, 6)
+jumpCorner.Parent = jumpToggle
+
 local jumpBox = Instance.new("TextBox")
-jumpBox.Size = UDim2.new(0.4, 0, 0, 25)
-jumpBox.Position = UDim2.new(0.55, 0, 0.45, 0)
+jumpBox.Size = UDim2.fromOffset(125, 35)
+jumpBox.Position = UDim2.fromOffset(160, 110)
+jumpBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
 jumpBox.Text = "100"
-jumpBox.PlaceholderText = "Jump Power"
-jumpBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 jumpBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpBox.PlaceholderText = "JumpPower"
 jumpBox.ClearTextOnFocus = false
+jumpBox.Font = Enum.Font.Gotham
+jumpBox.TextSize = 14
 jumpBox.Parent = mainFrame
 
--- Helper function
-local function getNumber(text, fallback)
-	local number = tonumber(text)
+local jumpBoxCorner = Instance.new("UICorner")
+jumpBoxCorner.CornerRadius = UDim.new(0, 6)
+jumpBoxCorner.Parent = jumpBox
 
-	if number then
-		return number
+-- Status
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -30, 0, 30)
+status.Position = UDim2.fromOffset(15, 160)
+status.BackgroundTransparency = 1
+status.Text = "Ready"
+status.TextColor3 = Color3.fromRGB(180, 180, 180)
+status.Font = Enum.Font.Gotham
+status.TextSize = 13
+status.Parent = mainFrame
+
+--==================================================
+-- HELPERS
+--==================================================
+
+local function getNumber(text, fallback)
+	local value = tonumber(text)
+
+	if value == nil then
+		return fallback
 	end
 
-	return fallback
+	return value
 end
 
--- Apply current settings to humanoid
 local function updateMovement()
-	if not humanoid then
+	if not humanoid or humanoid.Parent == nil then
 		return
 	end
 
 	if speedEnabled then
-		humanoid.WalkSpeed = getNumber(speedBox.Text, normalSpeed)
+		humanoid.WalkSpeed =
+			getNumber(speedBox.Text, DEFAULT_WALKSPEED)
 	else
-		humanoid.WalkSpeed = normalSpeed
+		humanoid.WalkSpeed = DEFAULT_WALKSPEED
 	end
 
 	if jumpEnabled then
-		humanoid.JumpPower = getNumber(jumpBox.Text, normalJump)
+		humanoid.JumpPower =
+			getNumber(jumpBox.Text, DEFAULT_JUMPPOWER)
 	else
-		humanoid.JumpPower = normalJump
+		humanoid.JumpPower = DEFAULT_JUMPPOWER
 	end
 end
 
--- Speed toggle
+local function updateStatus()
+	local speedText = speedEnabled and "Speed ON" or "Speed OFF"
+	local jumpText = jumpEnabled and "Jump ON" or "Jump OFF"
+
+	status.Text = speedText .. "  •  " .. jumpText
+end
+
+--==================================================
+-- BUTTONS
+--==================================================
+
 speedToggle.MouseButton1Click:Connect(function()
 	speedEnabled = not speedEnabled
 
-	speedToggle.Text = speedEnabled and "Speed: ON" or "Speed: OFF"
-
-	speedToggle.BackgroundColor3 =
-		speedEnabled
-		and Color3.fromRGB(0, 170, 0)
-		or Color3.fromRGB(80, 80, 80)
+	if speedEnabled then
+		speedToggle.Text = "Speed: ON"
+		speedToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+	else
+		speedToggle.Text = "Speed: OFF"
+		speedToggle.BackgroundColor3 = Color3.fromRGB(65, 65, 72)
+	end
 
 	updateMovement()
+	updateStatus()
 end)
 
--- Jump toggle
 jumpToggle.MouseButton1Click:Connect(function()
 	jumpEnabled = not jumpEnabled
 
-	jumpToggle.Text = jumpEnabled and "Jump: ON" or "Jump: OFF"
-
-	jumpToggle.BackgroundColor3 =
-		jumpEnabled
-		and Color3.fromRGB(0, 170, 0)
-		or Color3.fromRGB(80, 80, 80)
+	if jumpEnabled then
+		jumpToggle.Text = "Jump: ON"
+		jumpToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+	else
+		jumpToggle.Text = "Jump: OFF"
+		jumpToggle.BackgroundColor3 = Color3.fromRGB(65, 65, 72)
+	end
 
 	updateMovement()
+	updateStatus()
 end)
 
--- Speed value changed
+--==================================================
+-- INPUT
+--==================================================
+
 speedBox.FocusLost:Connect(function()
 	if speedEnabled then
 		updateMovement()
 	end
 end)
 
--- Jump value changed
 jumpBox.FocusLost:Connect(function()
 	if jumpEnabled then
 		updateMovement()
 	end
 end)
 
--- Handle respawns
+--==================================================
+-- RESPAWN HANDLING
+--==================================================
+
 player.CharacterAdded:Connect(function(newCharacter)
 	character = newCharacter
-	humanoid = character:WaitForChild("Humanoid")
+	humanoid = newCharacter:WaitForChild("Humanoid")
 
 	task.wait(0.2)
 
 	updateMovement()
 end)
 
-print("Movement test GUI loaded!")
-```
+print("Movement Test GUI loaded successfully.")
