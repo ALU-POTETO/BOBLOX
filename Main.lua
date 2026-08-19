@@ -1,283 +1,200 @@
+```lua
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
 
 --==================================================
 -- CONFIG
 --==================================================
 
-local DEFAULT_WALKSPEED = 16
-local DEFAULT_JUMPPOWER = 50
+local TOGGLE_KEY = Enum.KeyCode.F
+local SCAN_INTERVAL = 0.1
+local ATTACK_DELAY = 0.2
+local OFFSET = CFrame.new(0, 0, 2)
 
-local speedEnabled = false
--- Add this near your variables at top (after line with "local speedEnabled = false")  
-local speedLoop = nil
+--==================================================
+-- STATE
+--==================================================
 
--- Replace your updateMovement() function with this:
+local farming = false
+local farmThread = nil
 
-local function updateMovement()  
-if not humanoid or humanoid.Parent == nil then  
-return  
+local character
+local humanoid
+local rootPart
+
+--==================================================
+-- CHARACTER HANDLING
+--==================================================
+
+local function updateCharacter(newCharacter)
+	character = newCharacter
+
+	humanoid = character:WaitForChild("Humanoid", 5)
+	rootPart = character:WaitForChild("HumanoidRootPart", 5)
+
+	if not humanoid or not rootPart then
+		warn("Character components not found.")
+	end
 end
 
--- Jump handling remains the same  
-if jumpEnabled then  
-humanoid.JumpPower = getNumber(jumpBox.Text, DEFAULT_JUMPPOWER)  
-else  
-humanoid.JumpPower = DEFAULT_JUMPPOWER  
-end
+updateCharacter(
+	player.Character or player.CharacterAdded:Wait()
+)
 
--- Speed handling - STOP any existing loop first  
-if speedLoop then  
-speedLoop = nil -- This will stop the loop on next iteration  
-end
-
--- If speed is enabled, start a loop to constantly reapply  
-if speedEnabled then  
-speedLoop = task.spawn(function()  
-while speedLoop and speedEnabled do  
-if humanoid and humanoid.Parent then  
-humanoid.WalkSpeed = getNumber(speedBox.Text, DEFAULT_WALKSPEED)  
-else  
-break  
-end  
-task.wait(0.1) -- Reapply every 0.1 seconds  
-end  
--- When loop ends, set back to default  
-if humanoid and humanoid.Parent then  
-humanoid.WalkSpeed = DEFAULT_WALKSPEED  
-end  
-end)  
-else  
--- Speed disabled - set to normal  
-if humanoid and humanoid.Parent then  
-humanoid.WalkSpeed = DEFAULT_WALKSPEED  
-end  
-end  
-end  
-local jumpEnabled = false
+player.CharacterAdded:Connect(function(newCharacter)
+	updateCharacter(newCharacter)
+end)
 
 --==================================================
--- GUI
+-- FIND CLOSEST NPC
 --==================================================
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MovementTestGUI"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = playerGui
-
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.fromOffset(300, 210)
-mainFrame.Position = UDim2.fromOffset(20, 20)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = mainFrame
-
--- Title
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-title.Text = "Movement Test"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 17
-title.Parent = mainFrame
-
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 10)
-titleCorner.Parent = title
-
---==================================================
--- SPEED
---==================================================
-
-local speedToggle = Instance.new("TextButton")
-speedToggle.Size = UDim2.fromOffset(125, 35)
-speedToggle.Position = UDim2.fromOffset(15, 60)
-speedToggle.BackgroundColor3 = Color3.fromRGB(65, 65, 72)
-speedToggle.Text = "Speed: OFF"
-speedToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedToggle.Font = Enum.Font.GothamMedium
-speedToggle.TextSize = 14
-speedToggle.Parent = mainFrame
-
-local speedCorner = Instance.new("UICorner")
-speedCorner.CornerRadius = UDim.new(0, 6)
-speedCorner.Parent = speedToggle
-
-local speedBox = Instance.new("TextBox")
-speedBox.Size = UDim2.fromOffset(125, 35)
-speedBox.Position = UDim2.fromOffset(160, 60)
-speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
-speedBox.Text = "100"
-speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedBox.PlaceholderText = "WalkSpeed"
-speedBox.ClearTextOnFocus = false
-speedBox.Font = Enum.Font.Gotham
-speedBox.TextSize = 14
-speedBox.Parent = mainFrame
-
-local speedBoxCorner = Instance.new("UICorner")
-speedBoxCorner.CornerRadius = UDim.new(0, 6)
-speedBoxCorner.Parent = speedBox
-
---==================================================
--- JUMP
---==================================================
-
-local jumpToggle = Instance.new("TextButton")
-jumpToggle.Size = UDim2.fromOffset(125, 35)
-jumpToggle.Position = UDim2.fromOffset(15, 110)
-jumpToggle.BackgroundColor3 = Color3.fromRGB(65, 65, 72)
-jumpToggle.Text = "Jump: OFF"
-jumpToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-jumpToggle.Font = Enum.Font.GothamMedium
-jumpToggle.TextSize = 14
-jumpToggle.Parent = mainFrame
-
-local jumpCorner = Instance.new("UICorner")
-jumpCorner.CornerRadius = UDim.new(0, 6)
-jumpCorner.Parent = jumpToggle
-
-local jumpBox = Instance.new("TextBox")
-jumpBox.Size = UDim2.fromOffset(125, 35)
-jumpBox.Position = UDim2.fromOffset(160, 110)
-jumpBox.BackgroundColor3 = Color3.fromRGB(50, 50, 57)
-jumpBox.Text = "100"
-jumpBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-jumpBox.PlaceholderText = "JumpPower"
-jumpBox.ClearTextOnFocus = false
-jumpBox.Font = Enum.Font.Gotham
-jumpBox.TextSize = 14
-jumpBox.Parent = mainFrame
-
-local jumpBoxCorner = Instance.new("UICorner")
-jumpBoxCorner.CornerRadius = UDim.new(0, 6)
-jumpBoxCorner.Parent = jumpBox
-
--- Status
-local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -30, 0, 30)
-status.Position = UDim2.fromOffset(15, 160)
-status.BackgroundTransparency = 1
-status.Text = "Ready"
-status.TextColor3 = Color3.fromRGB(180, 180, 180)
-status.Font = Enum.Font.Gotham
-status.TextSize = 13
-status.Parent = mainFrame
-
---==================================================
--- HELPERS
---==================================================
-
-local function getNumber(text, fallback)
-	local value = tonumber(text)
-
-	if value == nil then
-		return fallback
+local function getClosestNPC()
+	if not rootPart then
+		return nil
 	end
 
-	return value
+	local enemiesFolder = Workspace:FindFirstChild("Enemies")
+
+	if not enemiesFolder then
+		return nil
+	end
+
+	local closestNPC = nil
+	local closestDistance = math.huge
+
+	for _, npc in ipairs(enemiesFolder:GetChildren()) do
+		local npcHumanoid = npc:FindFirstChildOfClass("Humanoid")
+		local npcRoot = npc:FindFirstChild("HumanoidRootPart")
+
+		if npcHumanoid
+			and npcRoot
+			and npcHumanoid.Health > 0 then
+
+			local distance =
+				(rootPart.Position - npcRoot.Position).Magnitude
+
+			if distance < closestDistance then
+				closestDistance = distance
+				closestNPC = npc
+			end
+		end
+	end
+
+	return closestNPC
 end
 
-local function updateMovement()
-	if not humanoid or humanoid.Parent == nil then
+--==================================================
+-- FARM ACTION
+--==================================================
+
+local function performFarmAction()
+	if not farming then
 		return
 	end
 
-	if speedEnabled then
-		humanoid.WalkSpeed =
-			getNumber(speedBox.Text, DEFAULT_WALKSPEED)
-	else
-		humanoid.WalkSpeed = DEFAULT_WALKSPEED
+	if not character or not character.Parent then
+		return
 	end
 
-	if jumpEnabled then
-		humanoid.JumpPower =
-			getNumber(jumpBox.Text, DEFAULT_JUMPPOWER)
-	else
-		humanoid.JumpPower = DEFAULT_JUMPPOWER
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	if not rootPart then
+		return
+	end
+
+	local target = getClosestNPC()
+
+	if not target then
+		return
+	end
+
+	local targetRoot =
+		target:FindFirstChild("HumanoidRootPart")
+
+	local targetHumanoid =
+		target:FindFirstChildOfClass("Humanoid")
+
+	if not targetRoot
+		or not targetHumanoid
+		or targetHumanoid.Health <= 0 then
+		return
+	end
+
+	-- Controlled movement test.
+	-- This deliberately creates an obvious teleport so
+	-- the server anti-cheat can detect it.
+	rootPart.CFrame =
+		targetRoot.CFrame * OFFSET
+
+	-- Executor-specific input function.
+	-- Only use this in your own controlled test environment.
+	if typeof(mouse1click) == "function" then
+		mouse1click()
 	end
 end
 
-local function updateStatus()
-	local speedText = speedEnabled and "Speed ON" or "Speed OFF"
-	local jumpText = jumpEnabled and "Jump ON" or "Jump OFF"
+--==================================================
+-- FARM LOOP
+--==================================================
 
-	status.Text = speedText .. "  •  " .. jumpText
+local function startFarm()
+	if farmThread then
+		return
+	end
+
+	farming = true
+
+	print("Auto-farm STARTED")
+
+	farmThread = task.spawn(function()
+		while farming do
+			performFarmAction()
+
+			task.wait(SCAN_INTERVAL)
+
+			if farming then
+				task.wait(ATTACK_DELAY)
+			end
+		end
+
+		farmThread = nil
+
+		print("Auto-farm STOPPED")
+	end)
 end
 
---==================================================
--- BUTTONS
---==================================================
+local function stopFarm()
+	farming = false
+end
 
-speedToggle.MouseButton1Click:Connect(function()
-	speedEnabled = not speedEnabled
-
-	if speedEnabled then
-		speedToggle.Text = "Speed: ON"
-		speedToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+local function toggleFarm()
+	if farming then
+		stopFarm()
 	else
-		speedToggle.Text = "Speed: OFF"
-		speedToggle.BackgroundColor3 = Color3.fromRGB(65, 65, 72)
+		startFarm()
 	end
-
-	updateMovement()
-	updateStatus()
-end)
-
-jumpToggle.MouseButton1Click:Connect(function()
-	jumpEnabled = not jumpEnabled
-
-	if jumpEnabled then
-		jumpToggle.Text = "Jump: ON"
-		jumpToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-	else
-		jumpToggle.Text = "Jump: OFF"
-		jumpToggle.BackgroundColor3 = Color3.fromRGB(65, 65, 72)
-	end
-
-	updateMovement()
-	updateStatus()
-end)
+end
 
 --==================================================
 -- INPUT
 --==================================================
 
-speedBox.FocusLost:Connect(function()
-	if speedEnabled then
-		updateMovement()
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then
+		return
+	end
+
+	if input.KeyCode == TOGGLE_KEY then
+		toggleFarm()
 	end
 end)
 
-jumpBox.FocusLost:Connect(function()
-	if jumpEnabled then
-		updateMovement()
-	end
-end)
-
---==================================================
--- RESPAWN HANDLING
---==================================================
-
-player.CharacterAdded:Connect(function(newCharacter)  
-character = newCharacter  
-humanoid = newCharacter:WaitForChild("Humanoid")
-
-task.wait(0.2)
-
--- Restart speed loop if it was active  
-if speedEnabled then  
-updateMovement()  
-end  
-end)  
+print("Auto-farm test client loaded.")
+print("Press F to toggle.")
+```
