@@ -14,6 +14,51 @@ local DEFAULT_WALKSPEED = 16
 local DEFAULT_JUMPPOWER = 50
 
 local speedEnabled = false
+-- Add this near your variables at top (after line with "local speedEnabled = false")  
+local speedLoop = nil
+
+-- Replace your updateMovement() function with this:
+
+local function updateMovement()  
+if not humanoid or humanoid.Parent == nil then  
+return  
+end
+
+-- Jump handling remains the same  
+if jumpEnabled then  
+humanoid.JumpPower = getNumber(jumpBox.Text, DEFAULT_JUMPPOWER)  
+else  
+humanoid.JumpPower = DEFAULT_JUMPPOWER  
+end
+
+-- Speed handling - STOP any existing loop first  
+if speedLoop then  
+speedLoop = nil -- This will stop the loop on next iteration  
+end
+
+-- If speed is enabled, start a loop to constantly reapply  
+if speedEnabled then  
+speedLoop = task.spawn(function()  
+while speedLoop and speedEnabled do  
+if humanoid and humanoid.Parent then  
+humanoid.WalkSpeed = getNumber(speedBox.Text, DEFAULT_WALKSPEED)  
+else  
+break  
+end  
+task.wait(0.1) -- Reapply every 0.1 seconds  
+end  
+-- When loop ends, set back to default  
+if humanoid and humanoid.Parent then  
+humanoid.WalkSpeed = DEFAULT_WALKSPEED  
+end  
+end)  
+else  
+-- Speed disabled - set to normal  
+if humanoid and humanoid.Parent then  
+humanoid.WalkSpeed = DEFAULT_WALKSPEED  
+end  
+end  
+end  
 local jumpEnabled = false
 
 --==================================================
@@ -225,13 +270,14 @@ end)
 -- RESPAWN HANDLING
 --==================================================
 
-player.CharacterAdded:Connect(function(newCharacter)
-	character = newCharacter
-	humanoid = newCharacter:WaitForChild("Humanoid")
+player.CharacterAdded:Connect(function(newCharacter)  
+character = newCharacter  
+humanoid = newCharacter:WaitForChild("Humanoid")
 
-	task.wait(0.2)
+task.wait(0.2)
 
-	updateMovement()
-end)
-
-print("Movement Test GUI loaded successfully.")
+-- Restart speed loop if it was active  
+if speedEnabled then  
+updateMovement()  
+end  
+end)  
